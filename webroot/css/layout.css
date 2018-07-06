@@ -1,0 +1,154 @@
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  margin-bottom: 100px;
+  background-color: #12171c;
+}
+.banner-container {
+	background-image: url('../images/banner-home.jpg');
+	background-size: auto;
+	background-position: center;
+	background-repeat: no-repeat;
+	height: 500px;
+}
+
+.footer {
+  background-color: #f1e6d2;
+  border-top: solid 5px #ffce1f;
+	height: 80px;
+}
+
+.form-control {
+	border-color: #ccc;
+  background-color: #ccc;
+}
+
+.btn-primary {
+    color: #12171c;
+    background-color: #ffce1f;
+    border-color: #e2b411;
+}
+
+.btn-primary:hover {
+    color: #12171c;
+    background-color: #cca51c;
+    border-color: #e2b411;
+}
+
+.no-padding {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.padding {
+	padding-left: 15px;
+	padding-right: 15px;
+}
+
+.no-margin {
+	margin: 0;
+}
+
+.search-jumbotron {
+  margin-top: 50px;
+  border: solid 1px #ccc;
+}
+
+h1 {
+  font-size: 36px;
+  color: #ffce1f;
+  border-bottom: solid 1px #63572f;
+  padding-bottom: 15px;
+  margin-bottom: 30px;
+}
+
+h3, .h3, h4 {
+    color: #00113d;
+}
+
+h4 {
+	margin-top: 50px
+}
+
+.alert {
+    margin-top: 50px;
+    margin-bottom: 0;
+		padding: 30px;
+}
+
+a {
+	color: #00113d;
+}
+
+a:hover {
+	color: #14e6dd;
+  text-decoration: none;
+}
+
+a.view {
+	margin-top: 10px;
+	display: block;
+	font-style: italic;
+	font-weight: bold;
+}
+
+.img-thumbnail {
+    height:180px;
+    width: auto;
+}
+
+.text-center {
+	text-align: center;
+}
+
+.row-img {
+	margin-bottom: 25px;
+	margin-top: 25px;
+}
+
+.box{
+  position:relative;
+}
+
+.img-title{
+  position: absolute;
+  color: #fff;
+  text-align: center;
+  left: 0;
+  right: 0;
+  top: 10%;
+  letter-spacing: 3px;
+}
+
+.img-margin{
+  margin: 6px;
+}
+
+.img-margin-left{
+  margin: 6px;
+  margin-left: 0;
+}
+
+.img-margin-right{
+  margin: 6px;
+  margin-right: 0;
+}
+
+.jumbotron-top-margin{
+  margin-top: 50px;
+}
+
+.container .jumbotron {
+  background-color: #212833;
+  border: solid 1px #383838;
+  border-radius: 0;
+}
+
+@media(max-width: 992px){
+
+  .form-control{
+    margin-bottom: 15px;
+  }
+}
