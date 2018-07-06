@@ -52,10 +52,7 @@ require_once('../src/Class/' . strtolower($class) . '.php');
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav navbar-right">
             <li <?php echo $home_active; ?>><a href="<?php echo HOST . PATH; ?>">HOME</a></li>
-            <li <?php echo $email_active; ?>><a href="<?php echo HOST . PATH . 'Email/View'; ?>">EMAILS</a></li>
-            <li <?php echo $lists_active; ?>><a href="<?php echo HOST . PATH . 'Lists/View'; ?>">LISTS</a></li>
-            <li <?php echo $subscribers_active; ?>><a href="<?php echo HOST . PATH . 'Subscriber/View'; ?>">SUBSCRIBERS</a></li>
-            <li><a href="<?php echo HOST . PATH . 'User/Logout'; ?>">LOGOUT</a></li>
+            <li><a href="<?php echo HOST . PATH . 'User/Login'; ?>">LOGIN</a></li>
           </ul>
         </div>
       </div>
