@@ -1,9 +1,19 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+ini_set('memory_limit', '512M');
+ini_set('max_execution_time', 300);
 
 // Get the router and configuration settings
 require_once('../config/config.php');
 require_once('../router.php');
-require_once('../src/Class/' . strtolower($class) . '.php');
+require_once('../src/Class/' . $class . '.php');
+
+// Instantiate the object
+$destiny = new Destiny();
+
+$destiny->getManifest();
 
 ?>
 <!DOCTYPE html>
@@ -35,29 +45,27 @@ require_once('../src/Class/' . strtolower($class) . '.php');
 <body>
 
   <!-- Navbar -->
-  <?php if(isset($_SESSION['user_id'])){ ?>
-    <nav class="navbar navbar-default">
-      <div class="container">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="<?php echo HOST . PATH; ?>">
-            <img src="images/logo-bungie.png">
-          </a>
-        </div>
-        <div id="navbar" class="navbar-collapse collapse">
-          <ul class="nav navbar-nav navbar-right">
-            <li <?php echo $home_active; ?>><a href="<?php echo HOST . PATH; ?>">HOME</a></li>
-            <li><a href="<?php echo HOST . PATH . 'User/Login'; ?>">LOGIN</a></li>
-          </ul>
-        </div>
+  <nav class="navbar navbar-default">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="<?php echo HOST . PATH; ?>">
+          <img src="images/destiny-logo.png">
+        </a>
       </div>
-    </nav>
-  <?php } ?>
+      <div id="navbar" class="navbar-collapse collapse">
+        <ul class="nav navbar-nav navbar-right">
+          <li <?php echo $home_active; ?>><a href="<?php echo HOST . PATH; ?>">HOME</a></li>
+          <li><a href="<?php echo $_SERVER['REQUEST_URI']; ?>?GetManifest">REFRESH DATABASE</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
   <!-- End Navbar -->
 
   <!-- Main Body -->

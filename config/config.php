@@ -1,13 +1,8 @@
 <?php
 session_start();
 
-define('DB_HOST', 'db_host');
-define('DB_USER', 'db_user');
-define('DB_PWD', 'db_password');
-define('DB_DATABASE', 'db_name');
-
 // Define API Host
-define('API_HOST', 'https://www.bungie.net/Platform/Destiny2/');
+define('BASE_URL', 'https://www.bungie.net/');
 
 // Define API Key
 define('API_KEY', 'your_key');

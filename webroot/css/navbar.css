@@ -58,7 +58,7 @@ a.navbar-brand:hover{
 }
 
 .navbar-toggle:hover .icon-bar{
-  background-color: #14e6dd !important;
+  background-color: #ccc !important;
 }
 
 .navbar-default .navbar-toggle .icon-bar {
@@ -66,8 +66,8 @@ a.navbar-brand:hover{
 }
 
 .navbar-default .navbar-toggle:hover, .navbar-default .navbar-toggle:focus {
-  background-color: #00113d;
-  border-color: #14e6dd;
+  background-color: #212833;
+  border-color: #ccc;
 }
 
 .navbar-default .navbar-nav>.active>a, .navbar-default .navbar-nav>.active>a:hover, .navbar-default .navbar-nav>.active>a:focus {

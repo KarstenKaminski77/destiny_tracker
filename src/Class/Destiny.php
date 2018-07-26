@@ -8,6 +8,17 @@
     private $gamer_tag;
     private $gamer_id;
     private $gamer_class_id;
+    private $manifest;
+    private $cache_file_path;
+    private $emblem;
+    private $icon;
+    private $light_level;
+    private $class;
+    private $race;
+    private $gender;
+    private $inc;
+    private $equipped_items_array;
+    private $inventory_items_array;
 
     // Setter methods
 
@@ -27,6 +38,51 @@
       }
     }
 
+    public function setClassHash($class_hash){
+
+      if(isset($class_hash)){
+
+        $this->class_hash = $class_hash;
+      }
+    }
+
+    public function setGenderHash($gender_hash){
+
+      if(isset($gender_hash)){
+
+        $this->gender_hash = $gender_hash;
+      }
+    }
+
+    public function setRaceHash($race_hash){
+
+      if(isset($race_hash)){
+
+        $this->race_hash = $race_hash;
+      }
+    }
+
+    public function setHash($hash){
+
+      if(isset($hash)){
+
+        $this->hash = $hash;
+      }
+    }
+
+    public function setDbTable($db_table){
+
+      if(isset($db_table)){
+
+        $this->db_table = $db_table;
+      }
+    }
+
+    public function setInc($i){
+
+        $this->inc = $i;
+    }
+
     // Getter methods
 
     public function getGamerTag(){
@@ -34,15 +90,67 @@
       return $this->gamer_tag;
     }
 
+    public function getEmblem(){
+
+      return $this->emblem;
+    }
+
+    public function getLightLevel(){
+
+      return $this->light_level;
+    }
+
+    public function getClass(){
+
+      return $this->class;
+    }
+
+    public function getGender(){
+
+      return $this->gender;
+    }
+
+    public function getRace(){
+
+      return $this->race;
+    }
+
+    public function getManifest(){
+
+      if(isset($_GET['GetManifest'])){
+
+        $this->extractManifest();
+
+        header('Location: '. HOST . PATH);
+      }
+    }
+
+    public function getInventoryItems(){
+
+      return $this->inventory_items_array;
+    }
+
+    public function getEquippedItems(){
+
+      return $this->equipped_items_array;
+    }
+
     // Class methods
 
     private function curl(){
 
+      // Create a cURL handle
       $ch = curl_init();
 
-      curl_setopt($ch, CURLOPT_URL, API_HOST . $this->endpoint);
+      // Set the cURL Options
+      curl_setopt($ch, CURLOPT_URL, BASE_URL . $this->endpoint);
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
       curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-API-Key: ' . API_KEY));
+
+      // If there was an error, throw an Exception
+      if(curl_errno($ch)){
+          throw new Exception(curl_error($ch));
+      }
 
       $json = curl_exec($ch);
 
@@ -56,7 +164,7 @@
 
       if(isset($this->platform) && isset($this->gamer_tag)){
 
-        $this->endpoint = 'SearchDestinyPlayer/'. $this->platform .'/'. $this->gamer_tag .'/';
+        $this->endpoint = 'Platform/Destiny2/SearchDestinyPlayer/'. $this->platform .'/'. $this->gamer_tag .'/';
 
         $return = $this->curl()->Response[0];
 
@@ -69,47 +177,219 @@
     }
 
     // Returns the gamer class id's
-    public function getGamerProfile(){
+    public function getGamerClassIds(){
 
       $this->getGamerId();
 
-      $this->gamer_class_id = [];
-
       if(isset($this->gamer_id)){
 
-        $this->endpoint = $this->platform . '/Profile/' . $this->gamer_id .'/?components=100';
-
-        $this->gamer_class_id = [];
-
-        for($i=0;$i<3;$i++){
-
-          $this->gamer_class_id[] = $this->curl()->Response->profile->data->characterIds[$i];
-        }
+        $this->endpoint = 'Platform/Destiny2/' . $this->platform . '/Profile/' . $this->gamer_id .'/?components=100';
+        $this->gamer_class_id = $this->curl()->Response->profile->data->characterIds;
       }
+    }
+
+    // Get items in the equipped slots
+    public function getEquipped(){
+
+      $this->endpoint = 'Platform/Destiny2/'. $this->platform;
+      $this->endpoint .= '/Profile/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=205';
+
+      $json = $this->curl();
+
+      $this->equiped_item = [];
+
+      foreach($json->Response->equipment->data->items as $items){
+
+        $this->equiped_item[] = $items;
+      }
+    }
+
+    public function getInventory(){
+
+      $this->endpoint = 'Platform/Destiny2/'. $this->platform;
+      $this->endpoint .= '/Profile/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=201';
+
+      $json = $this->curl();
+
+      $this->inventory_item = [];
+
+      if(isset($json->Response->inventory->data->items)){
+      foreach($json->Response->inventory->data->items as $items){
+
+        $this->inventory_item[] = $items;
+      }}
     }
 
     // Returns the gamer class info
     public function getGamerClass(){
 
-      $this->getGamerProfile();
+      $this->getGamerClassIds();
 
-      $json = [];
+      // Get emblem & light level
+      $this->endpoint  = 'Platform/Destiny2/' . $this->platform;
+      $this->endpoint .= '/Profile/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=200';
+      $json = $this->curl();
 
-      for($i=0;$i<3;$i++){
+      $this->light_level[] = $json->Response->character->data->light;
+      $this->emblem[] = $json->Response->character->data->emblemBackgroundPath;
 
-        if(isset($this->gamer_class_id)){
+      // Get class name
+      $this->setDbTable('DestinyClassDefinition');
+      $this->hash = $json->Response->character->data->classHash;
+      $this->class = $this->dbQuery()->displayProperties->name;
 
-          foreach($this->gamer_class_id as $class_id){
+      // Get race
+      $this->setDbTable('DestinyRaceDefinition');
+      $this->hash = $json->Response->character->data->raceHash;
+      $this->race = $this->dbQuery()->displayProperties->name;
 
-            $this->endpoint = $this->platform . '/Profile/'. $this->gamer_id .'/Character/'. $class_id .'/?components=200';
-            $json[] = $this->curl();
-          }
-        }
+      // Get gender
+      $this->setDbTable('DestinyGenderDefinition');
+      $this->hash = $json->Response->character->data->genderHash;
+      $this->gender = $this->dbQuery()->displayProperties->name;
 
-        return $json;
+      // Weapon types
+      $weapon_types = [
+        'kinetic' => 1498876634,
+        'energy'  => 2465295065,
+        'power'   => 953998645,
+      ];
+
+      // Get equipped items
+      $this->getEquipped();
+
+      $this->equipped_items_array = [];
+
+      $this->setDbTable('DestinyInventoryItemDefinition');
+      for($i=0;$i<count($this->equiped_item);$i++){
+
+        $this->hash = $this->equiped_item[$i]->itemHash;
+        $res = $this->dbQuery();
+
+        // Get the weapon type
+        $key = array_search($this->equiped_item[$i]->bucketHash, $weapon_types);
+
+        // Add weapon properties to the array
+        $this->equipped_items_array[$key] = [
+          $res->displayProperties->icon,
+          $res->displayProperties->name,
+          $res->inventory->bucketTypeHash
+        ];
       }
 
+      //Get inventory items
+      $this->getInventory();
+
+      $this->inventory_items_array = [];
+
+      $this->setDbTable('DestinyInventoryItemDefinition');
+
+      for($i=0;$i<count($this->inventory_item);$i++){
+
+        $this->hash = $this->inventory_item[$i]->itemHash;
+        $res = $this->dbQuery();
+
+        // Get the weapon type
+        $key = array_search($this->inventory_item[$i]->bucketHash, $weapon_types);
+
+        // Add weapon properties to the array
+        $this->inventory_items_array[$key][] = [
+          @$res->displayProperties->icon,
+          $res->displayProperties->name,
+          $res->inventory->bucketTypeHash
+        ];
+
+
+      }
     }
+
+    public function getRecentActivity(){
+
+      $this->endpoint = 'Platform/Destiny2/' . $this->platform;
+      $this->endpoint .= '/Account/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/Stats/Activities/';
+    }
+
+    private function getManifestUrl(){
+
+      $this->endpoint = 'Platform/Destiny2/Manifest/';
+      $this->manifest = $this->curl()->Response->mobileWorldContentPaths->en;
+
+      return BASE_URL . trim($this->manifest, '/');
+    }
+
+    private function downloadManifest(){
+
+      // The manifest to download
+      $url = $this->getManifestUrl();
+
+      // The path & filename to save to
+      $this->cache_file_path = ROOT . PATH . 'src/cache/' . basename($url);
+
+      // Open file handler.
+      $fp = fopen($this->cache_file_path, 'w+');
+
+      //If $fp is FALSE, something went wrong.
+      if($fp === false){
+          throw new Exception('Could not open: ' . $this->cache_file_path);
+      }
+
+      //Create a cURL handle
+      $ch = curl_init(trim($url, '/'));
+
+      // Set options
+      curl_setopt($ch, CURLOPT_FILE, $fp);
+      curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+      curl_exec($ch);
+
+      // If there was an error, throw an Exception
+      if(curl_errno($ch)){
+          throw new Exception(curl_error($ch));
+      }
+
+      // Get the HTTP status code.
+      $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+      curl_close($ch);
+    }
+
+    private function extractManifest(){
+
+      // Download the manifest
+      $this->downloadManifest();
+
+      // Open and extract the manifest
+      $zip = new ZipArchive;
+      $res = $zip->open($this->cache_file_path);
+
+      if ($res === TRUE) {
+
+        $zip->extractTo(ROOT . PATH . 'src/cache/zip');
+        $zip->close();
+
+        // Rename the manifest file to easily reference it when querying the db
+        rename(ROOT . PATH . 'src/cache/zip/' . basename($this->cache_file_path), ROOT . PATH . 'src/cache/zip/manifest.content');
+
+      } else {
+
+        echo 'Error extracting file.';
+      }
+    }
+
+    public function dbQuery(){
+
+      // Our unique index
+      $hash = $this->hash;
+
+      if($db = new SQLite3(ROOT . PATH . 'src/cache/zip/manifest.content')){
+
+        $result = $db->query("SELECT * FROM $this->db_table WHERE id + 4294967296 = $hash OR id = $hash");
+        $row = $result->fetchArray();
+        $arr = json_decode($row['json']);
+
+        return $arr;
+      }
+    }
+
   }
 
 ?>
