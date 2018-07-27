@@ -6,7 +6,7 @@
 
     private $platform;
     private $gamer_tag;
-    private $gamer_id;
+    private $membership_id;
     private $gamer_class_id;
     private $manifest;
     private $cache_file_path;
@@ -159,8 +159,8 @@
       return json_decode($json);
     }
 
-    // Returns the gamer_id.
-    public function getGamerId(){
+    // Returns the membership_id.
+    public function getMembershipId(){
 
       if(isset($this->platform) && isset($this->gamer_tag)){
 
@@ -170,20 +170,20 @@
 
         if(strlen($return->displayName) > 0){
 
-          $this->gamer_id = $return->membershipId;
+          $this->membership_id = $return->membershipId;
           $this->gamer_tag = $return->displayName;
         }
       }
     }
 
     // Returns the gamer class id's
-    public function getGamerClassIds(){
+    public function getCharacterClassIds(){
 
-      $this->getGamerId();
+      $this->getMembershipId();
 
-      if(isset($this->gamer_id)){
+      if(isset($this->membership_id)){
 
-        $this->endpoint = 'Platform/Destiny2/' . $this->platform . '/Profile/' . $this->gamer_id .'/?components=100';
+        $this->endpoint = 'Platform/Destiny2/' . $this->platform . '/Profile/' . $this->membership_id .'/?components=100';
         $this->gamer_class_id = $this->curl()->Response->profile->data->characterIds;
       }
     }
@@ -192,42 +192,44 @@
     public function getEquipped(){
 
       $this->endpoint = 'Platform/Destiny2/'. $this->platform;
-      $this->endpoint .= '/Profile/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=205';
+      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=205';
 
       $json = $this->curl();
 
-      $this->equiped_item = [];
+      $this->equipped_item = [];
 
       foreach($json->Response->equipment->data->items as $items){
-
-        $this->equiped_item[] = $items;
+//echo '<pre>', var_dump($json->Response->equipment->data->items[0]->itemInstanceId), '</pre>'; die();
+        $this->equipped_item[] = $items;
       }
     }
 
     public function getInventory(){
 
       $this->endpoint = 'Platform/Destiny2/'. $this->platform;
-      $this->endpoint .= '/Profile/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=201';
+      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=201';
 
       $json = $this->curl();
 
       $this->inventory_item = [];
 
       if(isset($json->Response->inventory->data->items)){
-      foreach($json->Response->inventory->data->items as $items){
 
-        $this->inventory_item[] = $items;
-      }}
+        foreach($json->Response->inventory->data->items as $items){
+
+          $this->inventory_item[] = $items;
+        }
+      }
     }
 
     // Returns the gamer class info
-    public function getGamerClass(){
+    public function getCharacterClass(){
 
-      $this->getGamerClassIds();
+      $this->getCharacterClassIds();
 
       // Get emblem & light level
       $this->endpoint  = 'Platform/Destiny2/' . $this->platform;
-      $this->endpoint .= '/Profile/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=200';
+      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=200';
       $json = $this->curl();
 
       $this->light_level[] = $json->Response->character->data->light;
@@ -261,19 +263,36 @@
       $this->equipped_items_array = [];
 
       $this->setDbTable('DestinyInventoryItemDefinition');
-      for($i=0;$i<count($this->equiped_item);$i++){
+      for($i=0;$i<count($this->equipped_item);$i++){
 
-        $this->hash = $this->equiped_item[$i]->itemHash;
+        if(isset($this->equipped_item[$i]->itemInstanceId)){
+
+          // Get the weapon power level
+          $this->endpoint = 'Platform/Destiny2/'. $this->platform;
+          $this->endpoint .= '/Profile/'. $this->membership_id .'/Item/';
+          $this->endpoint .= $this->equipped_item[$i]->itemInstanceId.'/?components=300';
+
+          $power_level = '';
+          $json = $this->curl(); 
+
+          if(isset($json->Response->instance->data->primaryStat)){
+
+            $power_level = $json->Response->instance->data->primaryStat->value;
+          }
+        }
+
+        $this->hash = $this->equipped_item[$i]->itemHash;
         $res = $this->dbQuery();
 
         // Get the weapon type
-        $key = array_search($this->equiped_item[$i]->bucketHash, $weapon_types);
+        $key = array_search($this->equipped_item[$i]->bucketHash, $weapon_types);
 
         // Add weapon properties to the array
         $this->equipped_items_array[$key] = [
           $res->displayProperties->icon,
           $res->displayProperties->name,
-          $res->inventory->bucketTypeHash
+          $res->inventory->bucketTypeHash,
+          $power_level
         ];
       }
 
@@ -286,6 +305,22 @@
 
       for($i=0;$i<count($this->inventory_item);$i++){
 
+        if(isset($this->inventory_item[$i]->itemInstanceId)){
+
+          // Get the weapon power level
+          $this->endpoint = 'Platform/Destiny2/'. $this->platform;
+          $this->endpoint .= '/Profile/'. $this->membership_id .'/Item/';
+          $this->endpoint .= $this->inventory_item[$i]->itemInstanceId.'/?components=300';
+
+          $power_level = '';
+          $json = $this->curl();
+
+          if(isset($json->Response->instance->data->primaryStat)){
+
+            $power_level = $json->Response->instance->data->primaryStat->value;
+          }
+        }
+
         $this->hash = $this->inventory_item[$i]->itemHash;
         $res = $this->dbQuery();
 
@@ -296,7 +331,8 @@
         $this->inventory_items_array[$key][] = [
           @$res->displayProperties->icon,
           $res->displayProperties->name,
-          $res->inventory->bucketTypeHash
+          $res->inventory->bucketTypeHash,
+          $power_level
         ];
 
 
@@ -306,7 +342,7 @@
     public function getRecentActivity(){
 
       $this->endpoint = 'Platform/Destiny2/' . $this->platform;
-      $this->endpoint .= '/Account/'. $this->gamer_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/Stats/Activities/';
+      $this->endpoint .= '/Account/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/Stats/Activities/';
     }
 
     private function getManifestUrl(){
