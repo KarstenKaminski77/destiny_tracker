@@ -1,5 +1,8 @@
 <?php
 
+  require_once(ROOT . PATH . 'vendor/autoload.php');
+  use Guzzle\Common\Exception\MultiTransferException;
+
   class Destiny {
 
     // Set the class properties
@@ -137,6 +140,40 @@
 
     // Class methods
 
+    private function multi_curl(){
+
+      // array of curl handles
+      $multiCurl = array();
+
+      // data to be returned
+      $result = array();
+
+      // multi handle
+      $mh = curl_multi_init();
+
+      for($i=0;$i<count($this->endpoint);$i++) {
+
+        // URL from which data will be fetched
+        $multiCurl[$i] = curl_init();
+        curl_setopt($multiCurl[$i], CURLOPT_URL,$this->endpoint[$i]);
+        curl_setopt($multiCurl[$i], CURLOPT_HTTPHEADER, array('X-API-Key: ' . API_KEY));
+        curl_setopt($multiCurl[$i], CURLOPT_RETURNTRANSFER, TRUE);
+        curl_multi_add_handle($mh, $multiCurl[$i]);
+      }
+
+      $index = NULL;
+      do {
+        curl_multi_exec($mh,$index);
+      } while($index > 0);
+      // get content and remove handles
+      foreach($multiCurl as $k => $ch) {
+        $this->result[$k] = curl_multi_getcontent($ch);
+        curl_multi_remove_handle($mh, $ch);
+      }
+      // close
+      curl_multi_close($mh);
+    }
+
     private function curl(){
 
       // Create a cURL handle
@@ -144,7 +181,7 @@
 
       // Set the cURL Options
       curl_setopt($ch, CURLOPT_URL, BASE_URL . $this->endpoint);
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
       curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-API-Key: ' . API_KEY));
 
       // If there was an error, throw an Exception
@@ -199,7 +236,7 @@
       $this->equipped_item = [];
 
       foreach($json->Response->equipment->data->items as $items){
-//echo '<pre>', var_dump($json->Response->equipment->data->items[0]->itemInstanceId), '</pre>'; die();
+
         $this->equipped_item[] = $items;
       }
     }
@@ -260,28 +297,38 @@
       // Get equipped items
       $this->getEquipped();
 
+      $this->endpoint_array = [];
+      $this->endpoint = [];
       $this->equipped_items_array = [];
 
-      $this->setDbTable('DestinyInventoryItemDefinition');
+      // Array of endpoints
       for($i=0;$i<count($this->equipped_item);$i++){
 
         if(isset($this->equipped_item[$i]->itemInstanceId)){
 
-          // Get the weapon power level
-          $this->endpoint = 'Platform/Destiny2/'. $this->platform;
-          $this->endpoint .= '/Profile/'. $this->membership_id .'/Item/';
-          $this->endpoint .= $this->equipped_item[$i]->itemInstanceId.'/?components=300';
+          $endpoint = BASE_URL . 'Platform/Destiny2/'. $this->platform;
+          $endpoint .= '/Profile/'. $this->membership_id .'/Item/';
+          $endpoint .= $this->equipped_item[$i]->itemInstanceId.'/?components=300';
 
-          $power_level = '';
-          $json = $this->curl(); 
+          $this->endpoint[] = $endpoint;
+        }
+      }
 
-          if(isset($json->Response->instance->data->primaryStat)){
+      // Send parallel HTTP requests
+      $this->multi_curl();
 
-            $power_level = $json->Response->instance->data->primaryStat->value;
-          }
+      for($i=0;$i<count($this->result);$i++){
+
+        $power_level = '';
+        $result = json_decode($this->result[$i]);
+
+        if(isset($result->Response->instance->data->primaryStat)){
+
+          $power_level = $result->Response->instance->data->primaryStat->value;
         }
 
         $this->hash = $this->equipped_item[$i]->itemHash;
+        $this->setDbTable('DestinyInventoryItemDefinition');
         $res = $this->dbQuery();
 
         // Get the weapon type
