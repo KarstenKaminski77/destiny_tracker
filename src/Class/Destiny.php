@@ -19,6 +19,8 @@
     private $inc;
     private $equipped_items_array;
     private $inventory_items_array;
+    private $component;
+    private $item_status;
 
     // Setter methods
 
@@ -148,7 +150,7 @@
       // multi handle
       $mh = curl_multi_init();
 
-      for($i=0;$i<count($this->endpoint);$i++) {
+      for($i=0;$i<count($this->endpoint);$i++){
 
         // URL from which data will be fetched
         $multiCurl[$i] = curl_init();
@@ -160,13 +162,19 @@
 
       $index = NULL;
       do {
+
         curl_multi_exec($mh,$index);
+
       } while($index > 0);
+
       // get content and remove handles
       foreach($multiCurl as $k => $ch) {
+
         $this->result[$k] = curl_multi_getcontent($ch);
+
         curl_multi_remove_handle($mh, $ch);
       }
+
       // close
       curl_multi_close($mh);
     }
@@ -222,37 +230,21 @@
       }
     }
 
-    // Get items in the equipped slots
-    public function getEquipped(){
+    // Get weapons on character classes
+    public function getItems(){
 
-      $this->endpoint = 'Platform/Destiny2/'. $this->platform;
-      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=205';
-
-      $json = $this->curl();
-
-      $this->equipped_item = [];
-
-      foreach($json->Response->equipment->data->items as $items){
-
-        $this->equipped_item[] = $items;
-      }
-    }
-
-    public function getInventory(){
-
-      $this->endpoint = 'Platform/Destiny2/'. $this->platform;
-      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=201';
+      $this->endpoint  = 'Platform/Destiny2/'. $this->platform;
+      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/';
+      $this->endpoint .= $this->gamer_class_id[$this->inc] .'/?components=' . $this->component;
 
       $json = $this->curl();
 
-      $this->inventory_item = [];
+      // Initialise array to store weapons
+      $this->class_weapons = [];
 
-      if(isset($json->Response->inventory->data->items)){
+      foreach($json->Response->{$this->item_status}->data->items as $items){
 
-        foreach($json->Response->inventory->data->items as $items){
-
-          $this->inventory_item[] = $items;
-        }
+        $this->class_weapons[] = $items;
       }
     }
 
@@ -292,19 +284,21 @@
       ];
 
       // Get equipped items
-      $this->getEquipped();
+      $this->component = 205;
+      $this->item_status = 'equipment';
+      $this->getItems();
 
       $this->endpoint = [];
       $this->equipped_items_array = [];
 
       // Array of endpoints
-      for($i=0;$i<count($this->equipped_item);$i++){
+      for($i=0;$i<count($this->class_weapons);$i++){
 
-        if(isset($this->equipped_item[$i]->itemInstanceId)){
+        if(isset($this->class_weapons[$i]->itemInstanceId)){
 
           $endpoint = BASE_URL . 'Platform/Destiny2/'. $this->platform;
           $endpoint .= '/Profile/'. $this->membership_id .'/Item/';
-          $endpoint .= $this->equipped_item[$i]->itemInstanceId.'/?components=300';
+          $endpoint .= $this->class_weapons[$i]->itemInstanceId.'/?components=300';
 
           $this->endpoint[] = $endpoint;
         }
@@ -313,9 +307,10 @@
       // Send parallel HTTP requests
       $this->multi_curl();
 
+      $power_level = '';
+
       for($i=0;$i<count($this->result);$i++){
 
-        $power_level = '';
         $result = json_decode($this->result[$i]);
 
         if(isset($result->Response->instance->data->primaryStat)){
@@ -323,14 +318,14 @@
           $power_level = $result->Response->instance->data->primaryStat->value;
         }
 
-        if(isset($this->equipped_item[$i]->itemHash)){
+        if(isset($this->class_weapons[$i]->itemHash)){
 
-          $this->hash = $this->equipped_item[$i]->itemHash;
+          $this->hash = $this->class_weapons[$i]->itemHash;
           $this->setDbTable('DestinyInventoryItemDefinition');
           $res = $this->dbQuery();
 
           // Get the weapon type
-          $key = array_search($this->equipped_item[$i]->bucketHash, $weapon_types);
+          $key = array_search($this->class_weapons[$i]->bucketHash, $weapon_types);
 
           // Add weapon properties to the array
           $this->equipped_items_array[$key] = [
@@ -343,21 +338,21 @@
       }
 
       //Get inventory items
-      $this->getInventory();
+      $this->component = 201;
+      $this->item_status = 'inventory';
+      $this->getItems();
 
       $this->inventory_items_array = [];
       $this->endpoint = [];
 
-      $this->setDbTable('DestinyInventoryItemDefinition');
+      for($i=0;$i<count($this->class_weapons);$i++){
 
-      for($i=0;$i<count($this->inventory_item);$i++){
-
-        if(isset($this->inventory_item[$i]->itemInstanceId)){
+        if(isset($this->class_weapons[$i]->itemInstanceId)){
 
           // Get the weapon power level
           $endpoint = BASE_URL . 'Platform/Destiny2/'. $this->platform;
           $endpoint .= '/Profile/'. $this->membership_id .'/Item/';
-          $endpoint .= $this->inventory_item[$i]->itemInstanceId.'/?components=300';
+          $endpoint .= $this->class_weapons[$i]->itemInstanceId.'/?components=300';
 
           $this->endpoint[] = $endpoint;
         }
@@ -368,18 +363,18 @@
 
       for($i=0;$i<count($this->result);$i++){
 
-        $power_level = '';
         $result = json_decode($this->result[$i]);
 
         if(isset($result->Response->instance->data->primaryStat)){
 
           $power_level = $result->Response->instance->data->primaryStat->value;
 
-          $this->hash = $this->inventory_item[$i]->itemHash;
+          $this->hash = $this->class_weapons[$i]->itemHash;
+          $this->setDbTable('DestinyInventoryItemDefinition');
           $res = $this->dbQuery();
 
           // Get the weapon type
-          $key = array_search($this->inventory_item[$i]->bucketHash, $weapon_types);
+          $key = array_search($this->class_weapons[$i]->bucketHash, $weapon_types);
 
           // Add weapon properties to the array
           $this->inventory_items_array[$key][] = [
