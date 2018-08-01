@@ -77,9 +77,9 @@
       foreach ($weapons as $weapon){
 
         // Equipped weapon
-        $image = $destiny->getEquippedItems()[$weapon][0];
-        $title = $destiny->getEquippedItems()[$weapon][1];
-        $power_level = $destiny->getEquippedItems()[$weapon][3];
+        $image = $destiny->getEquippedItems()[$weapon][$i][0];
+        $title = $destiny->getEquippedItems()[$weapon][$i][1];
+        $power_level = $destiny->getEquippedItems()[$weapon][$i][3];
 
         echo '<div class="row">';
         echo '  <div class="col-xs-12 col-md-12 col-xl-12">';

@@ -1,1 +1,7 @@
 config/config.php
+
+src/cache/zip/
+
+src/cache/
+
+config/

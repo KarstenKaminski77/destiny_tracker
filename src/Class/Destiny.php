@@ -21,6 +21,7 @@
     private $inventory_items_array;
     private $component;
     private $item_status;
+    private $weapon_array;
 
     // Setter methods
 
@@ -248,6 +249,60 @@
       }
     }
 
+    public function getWeapons(){
+
+      $this->endpoint = [];
+      ${$this->weapons_array} = [];
+
+      // Array of endpoints
+      for($i=0;$i<count($this->class_weapons);$i++){
+
+        if(isset($this->class_weapons[$i]->itemInstanceId)){
+
+          $endpoint = BASE_URL . 'Platform/Destiny2/'. $this->platform;
+          $endpoint .= '/Profile/'. $this->membership_id .'/Item/';
+          $endpoint .= $this->class_weapons[$i]->itemInstanceId.'/?components=300';
+
+          $this->endpoint[] = $endpoint;
+        }
+      }
+
+      // Send parallel HTTP requests
+      $this->multi_curl();
+
+      $power_level = '';
+
+      // Loop through multi_curl response
+      for($i=0;$i<count($this->result);$i++){
+
+        // Decode the reponse
+        $result = json_decode($this->result[$i]);
+
+        if(isset($result->Response->instance->data->primaryStat)){
+
+          $power_level = $result->Response->instance->data->primaryStat->value;
+
+          if(isset($this->class_weapons[$i]->itemHash)){
+
+            $this->hash = $this->class_weapons[$i]->itemHash;
+            $this->setDbTable('DestinyInventoryItemDefinition');
+            $res = $this->dbQuery();
+
+            // Get the weapon type
+            $key = array_search($this->class_weapons[$i]->bucketHash, $this->weapon_types);
+
+            // Add weapon properties to the array
+            $this->{$this->weapons_array}[$key][] = [
+              $res->displayProperties->icon,
+              $res->displayProperties->name,
+              $res->inventory->bucketTypeHash,
+              $power_level
+            ];
+          }
+        }
+      }
+    }
+
     // Returns the gamer class info
     public function getCharacterClass(){
 
@@ -255,7 +310,8 @@
 
       // Get emblem & light level
       $this->endpoint  = 'Platform/Destiny2/' . $this->platform;
-      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/'. $this->gamer_class_id[$this->inc] .'/?components=200';
+      $this->endpoint .= '/Profile/'. $this->membership_id .'/Character/';
+      $this->endpoint .= $this->gamer_class_id[$this->inc] .'/?components=200';
       $json = $this->curl();
 
       $this->light_level[] = $json->Response->character->data->light;
@@ -277,7 +333,7 @@
       $this->gender = $this->dbQuery()->displayProperties->name;
 
       // Weapon types
-      $weapon_types = [
+      $this->weapon_types = [
         'kinetic' => 1498876634,
         'energy'  => 2465295065,
         'power'   => 953998645,
@@ -288,103 +344,16 @@
       $this->item_status = 'equipment';
       $this->getItems();
 
-      $this->endpoint = [];
-      $this->equipped_items_array = [];
-
-      // Array of endpoints
-      for($i=0;$i<count($this->class_weapons);$i++){
-
-        if(isset($this->class_weapons[$i]->itemInstanceId)){
-
-          $endpoint = BASE_URL . 'Platform/Destiny2/'. $this->platform;
-          $endpoint .= '/Profile/'. $this->membership_id .'/Item/';
-          $endpoint .= $this->class_weapons[$i]->itemInstanceId.'/?components=300';
-
-          $this->endpoint[] = $endpoint;
-        }
-      }
-
-      // Send parallel HTTP requests
-      $this->multi_curl();
-
-      $power_level = '';
-
-      for($i=0;$i<count($this->result);$i++){
-
-        $result = json_decode($this->result[$i]);
-
-        if(isset($result->Response->instance->data->primaryStat)){
-
-          $power_level = $result->Response->instance->data->primaryStat->value;
-        }
-
-        if(isset($this->class_weapons[$i]->itemHash)){
-
-          $this->hash = $this->class_weapons[$i]->itemHash;
-          $this->setDbTable('DestinyInventoryItemDefinition');
-          $res = $this->dbQuery();
-
-          // Get the weapon type
-          $key = array_search($this->class_weapons[$i]->bucketHash, $weapon_types);
-
-          // Add weapon properties to the array
-          $this->equipped_items_array[$key] = [
-            $res->displayProperties->icon,
-            $res->displayProperties->name,
-            $res->inventory->bucketTypeHash,
-            $power_level
-          ];
-        }
-      }
+      $this->weapons_array = 'equipped_items_array';
+      $this->getWeapons();
 
       //Get inventory items
       $this->component = 201;
       $this->item_status = 'inventory';
       $this->getItems();
 
-      $this->inventory_items_array = [];
-      $this->endpoint = [];
-
-      for($i=0;$i<count($this->class_weapons);$i++){
-
-        if(isset($this->class_weapons[$i]->itemInstanceId)){
-
-          // Get the weapon power level
-          $endpoint = BASE_URL . 'Platform/Destiny2/'. $this->platform;
-          $endpoint .= '/Profile/'. $this->membership_id .'/Item/';
-          $endpoint .= $this->class_weapons[$i]->itemInstanceId.'/?components=300';
-
-          $this->endpoint[] = $endpoint;
-        }
-      }
-
-      $power_level = '';
-      $this->multi_curl();
-
-      for($i=0;$i<count($this->result);$i++){
-
-        $result = json_decode($this->result[$i]);
-
-        if(isset($result->Response->instance->data->primaryStat)){
-
-          $power_level = $result->Response->instance->data->primaryStat->value;
-
-          $this->hash = $this->class_weapons[$i]->itemHash;
-          $this->setDbTable('DestinyInventoryItemDefinition');
-          $res = $this->dbQuery();
-
-          // Get the weapon type
-          $key = array_search($this->class_weapons[$i]->bucketHash, $weapon_types);
-
-          // Add weapon properties to the array
-          $this->inventory_items_array[$key][] = [
-            @$res->displayProperties->icon,
-            $res->displayProperties->name,
-            $res->inventory->bucketTypeHash,
-            $power_level
-          ];
-        }
-      }
+      $this->weapons_array = 'inventory_items_array';
+      $this->getWeapons();
     }
 
     public function getRecentActivity(){
